@@ -906,7 +906,6 @@ export async function IIROSE_WSsend(bot: IIROSE_Bot, data: string): Promise<void
   const callId = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now();
 
-  bot.fulllogInfo(`[WS发送-${callId}] 开始等待锁, 时间戳: ${timestamp}`);
 
   // 创建新的锁链，确保串行执行
   wsSendLock = wsSendLock.then(async () =>
@@ -947,7 +946,6 @@ export async function IIROSE_WSsend(bot: IIROSE_Bot, data: string): Promise<void
       await new Promise(resolve => setTimeout(resolve, 100)); // 增加到100ms
 
       const finishTime = Date.now();
-      bot.fulllogInfo(`[WS发送-${callId}] 发送完成, 总耗时: ${finishTime - timestamp}ms`);
     } catch (error)
     {
       bot.loggerError(`[WS发送-${callId}] 发送失败:`, error);
@@ -956,5 +954,4 @@ export async function IIROSE_WSsend(bot: IIROSE_Bot, data: string): Promise<void
 
   // 等待当前操作完成
   await wsSendLock;
-  bot.fulllogInfo(`[WS发送-${callId}] 全部完成, 总时间: ${Date.now() - timestamp}ms`);
 };
