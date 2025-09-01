@@ -134,7 +134,6 @@ export class WsClient
 
         this.bot.loggerWarn('所有服务器都无法连接，将在5秒后重试...');
 
-        // 使用可中断的延迟机制
         let cancelled = false;
         await new Promise<void>((resolve) =>
         {
@@ -816,7 +815,6 @@ export class WsClient
    * @param url 
    * @returns 
    */
-  private getLatency(url: string): Promise<number | 'error'>;
   private getLatency(url: string): Promise<number | 'error'>
   {
     return new Promise(async (resolve, reject) =>
@@ -938,11 +936,6 @@ export async function IIROSE_WSsend(bot: IIROSE_Bot, data: string): Promise<void
       {
         bot.socket.send(unintArray);
       }
-
-      // 增加延迟确保消息发送完成
-      await new Promise(resolve => setTimeout(resolve, 100)); // 增加到100ms
-
-      const finishTime = Date.now();
     } catch (error)
     {
       bot.loggerError(`[WS发送-${callId}] 发送失败:`, error);

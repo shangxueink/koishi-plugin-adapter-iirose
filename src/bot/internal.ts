@@ -114,7 +114,7 @@ export class Internal
   {
     const { type, name, signer, cover, link, url, duration, bitRate, color, lyrics, origin } = musicOrigin;
     const mediaCardResult = mediaCard(type, name, signer, cover, color, duration, bitRate, origin);
-    IIROSE_WSsend(this.bot, mediaCardResult.data); // 使用.data获取数据
+    IIROSE_WSsend(this.bot, mediaCardResult.data);
     IIROSE_WSsend(this.bot, mediaData(type, name, signer, cover, link, url, duration, lyrics, origin));
   }
 

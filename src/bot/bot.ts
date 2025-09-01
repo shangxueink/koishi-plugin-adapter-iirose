@@ -309,6 +309,11 @@ export class IIROSE_Bot extends Bot<Context>
     this.messageObjList[messageId] = messageInfo;
   }
 
+  getMessageKeys(): string[]
+  {
+    return Object.keys(this.messageObjList);
+  }
+
   async kickGuildMember(guildId: string, userName: string, permanent?: boolean): Promise<void>
   {
     await IIROSE_WSsend(this, kick(userName));
@@ -381,7 +386,6 @@ export class IIROSE_Bot extends Bot<Context>
 
       if (this.socket && this.socket.readyState === WebSocket.OPEN)
       {
-        this.fulllogInfo(`[撤回消息] 开始发送撤回命令: ${deleteCommand}`);
         await IIROSE_WSsend(this, deleteCommand);
         return true;
       } else
