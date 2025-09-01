@@ -904,10 +904,7 @@ let wsSendLock = Promise.resolve();
 export async function IIROSE_WSsend(bot: IIROSE_Bot, data: string): Promise<void>
 {
   const callId = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now();
 
-
-  // 创建新的锁链，确保串行执行
   wsSendLock = wsSendLock.then(async () =>
   {
     try

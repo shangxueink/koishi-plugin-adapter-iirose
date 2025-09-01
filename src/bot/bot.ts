@@ -216,9 +216,6 @@ export class IIROSE_Bot extends Bot<Context>
 
   async sendMessage(channelId: string, content: Fragment, guildId?: string, options?: SendOptions): Promise<string[]>
   {
-    const timestamp = Date.now();
-    const stackTrace = new Error().stack?.split('\n').slice(1, 4).join(' | ') || 'unknown';
-
     if (!channelId || (!channelId.startsWith('public') && !channelId.startsWith('private')))
     {
       return [];
@@ -369,26 +366,18 @@ export class IIROSE_Bot extends Bot<Context>
   {
     try
     {
-      const timestamp = Date.now();
-
       // 根据频道类型确定撤回命令格式
       let deleteCommand: string;
       if (channelId.startsWith('private:'))
       {
-        // 私信频道使用 v0* 格式
-        // v0*679a51f1d4893#268925778653 // 发送
-        // v0*679a51f1d4893"679a67a46f713_130259426444 // 接受
         const userId = channelId.split(":")[1];
         deleteCommand = `v0*${userId}#${messageId}`;
       } else
       {
-        // 公开频道（群聊）使用 v0# 格式
-        // v0#810817404500" // 发送
-        // v0#679a67a46f713_810817404500" // 接受
         deleteCommand = `v0#${messageId}`;
       }
 
-      this.logInfo(`[撤回消息开始] 频道: ${channelId}, 消息ID: ${messageId}, 时间戳: ${timestamp}`);
+      this.logInfo(`[撤回消息开始] 频道: ${channelId}, 消息ID: ${messageId}`);
 
       if (this.socket && this.socket.readyState === WebSocket.OPEN)
       {
