@@ -277,12 +277,12 @@ export class WsClient
     }
     (this.loginObj.lr) ? '' : delete this.loginObj.lr;
 
-    socket.addEventListener('open', () =>
+    socket.addEventListener('open', async () =>
     {
       this.bot.loggerInfo('websocket 客户端连接中...');
       const loginPack = '*' + JSON.stringify(this.loginObj);
 
-      IIROSE_WSsend(this.bot, loginPack);
+      await IIROSE_WSsend(this.bot, loginPack);
 
       this.event = startEventsServer(this.bot);
       // 清理旧的心跳定时器（如果存在）
@@ -330,6 +330,11 @@ export class WsClient
       } else
       {
         message = Buffer.from(array).toString("utf8");
+      }
+
+      if (message.length < 500)
+      {
+        this.bot.fulllogInfo(`[WS接收]`, message);
       }
 
       const currentUsername = this.bot.config.smStart
@@ -654,7 +659,7 @@ export class WsClient
       clearInterval(this.live);
     }
 
-    this.live = setInterval(() =>
+    this.live = setInterval(async () =>
     {
       if (this.disposed)
       {
@@ -668,7 +673,14 @@ export class WsClient
           if (this.bot.status == Universal.Status.ONLINE)
           {
             this.bot.fulllogInfo(`发送空包（心跳保活） 实例: ${this.bot.user?.id || 'unknown'}`);
-            IIROSE_WSsend(this.bot, '');
+            try
+            {
+              await IIROSE_WSsend(this.bot, ''); // 心跳包不需要严格的错误处理
+            } catch (error)
+            {
+              // 心跳发送失败不阻断后续逻辑
+              this.bot.loggerWarn('心跳包发送失败:', error);
+            }
           }
         } else if (this.bot.socket.readyState === WebSocket.CLOSED || this.bot.socket.readyState === WebSocket.CLOSING)
         {
@@ -886,31 +898,63 @@ export class WsClient
   }
 
 }
-export function IIROSE_WSsend(bot: IIROSE_Bot, data: string)
-{
-  if (!bot.socket)
-  { //  布豪！
-    //  牙白！
-    this.bot.loggerError("布豪！ !bot.socket !!! 请联系开发者");
-    return;
-  }
-  if (bot.socket.readyState == 0)
-  {
-    this.bot.loggerError("布豪！ bot.socket.readyState == 0 !!! 请联系开发者");
-    return;
-  }
-  const buffer = Buffer.from(data);
-  const unintArray: any = Uint8Array.from(buffer);
+// WebSocket发送锁，确保消息发送时序正确
+let wsSendLock = Promise.resolve();
 
-  if (unintArray.length > 256)
+export async function IIROSE_WSsend(bot: IIROSE_Bot, data: string): Promise<void>
+{
+  const callId = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now();
+
+  bot.fulllogInfo(`[WS发送-${callId}] 开始等待锁, 时间戳: ${timestamp}`);
+
+  // 创建新的锁链，确保串行执行
+  wsSendLock = wsSendLock.then(async () =>
   {
-    const deflatedData = pako.gzip(data);
-    const deflatedArray: any = new Uint8Array(deflatedData.length + 1);
-    deflatedArray[0] = 1;
-    deflatedArray.set(deflatedData, 1);
-    bot.socket.send(deflatedArray);
-  } else
-  {
-    bot.socket.send(unintArray);
-  }
+    try
+    {
+      if (!bot.socket)
+      { //  布豪！
+        //  牙白！
+        bot.loggerError("布豪！ !bot.socket !!! 请联系开发者");
+        return;
+      }
+      if (bot.socket.readyState == 0)
+      {
+        bot.loggerError("布豪！ bot.socket.readyState == 0 !!! 请联系开发者");
+        return;
+      }
+
+      const shortData = data.length > 50 ? data.substring(0, 50) + '...' : data;
+      bot.fulllogInfo(`[WS发送-${callId}] 发送数据: ${shortData}`);
+
+      const buffer = Buffer.from(data);
+      const unintArray: any = Uint8Array.from(buffer);
+
+      if (unintArray.length > 256)
+      {
+        const deflatedData = pako.gzip(data);
+        const deflatedArray: any = new Uint8Array(deflatedData.length + 1);
+        deflatedArray[0] = 1;
+        deflatedArray.set(deflatedData, 1);
+        bot.socket.send(deflatedArray);
+      } else
+      {
+        bot.socket.send(unintArray);
+      }
+
+      // 增加延迟确保消息发送完成
+      await new Promise(resolve => setTimeout(resolve, 100)); // 增加到100ms
+
+      const finishTime = Date.now();
+      bot.fulllogInfo(`[WS发送-${callId}] 发送完成, 总耗时: ${finishTime - timestamp}ms`);
+    } catch (error)
+    {
+      bot.loggerError(`[WS发送-${callId}] 发送失败:`, error);
+    }
+  });
+
+  // 等待当前操作完成
+  await wsSendLock;
+  bot.fulllogInfo(`[WS发送-${callId}] 全部完成, 总时间: ${Date.now() - timestamp}ms`);
 };

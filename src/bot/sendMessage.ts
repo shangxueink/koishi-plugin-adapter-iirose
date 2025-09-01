@@ -48,16 +48,42 @@ export class IIROSE_BotMessageEncoder extends MessageEncoder<Context, IIROSE_Bot
 {
   private outDataOringin: string = '';
   private outDataOringinObj: string = '';
+  private currentMessageId: string = ''; // 存储当前消息ID
 
   async flush(): Promise<void>
   {
     if (this.bot.config.hangUpMode) { return; }
-    IIROSE_WSsend(this.bot, this.outDataOringinObj);
+    // 确保至少有一个空格作为消息内容，避免消息ID无法生成
+    if (this.outDataOringin.length <= 0)
+    {
+      this.outDataOringin = ' '; // 设置一个空格作为默认内容
+    }
+
+    // 在实际发送消息时生成消息ID和消息对象
+    if (this.channelId.startsWith('public:'))
+    {
+      const result = PublicMessage(this.outDataOringin, rgbaToHex(this.bot.config.color));
+      this.currentMessageId = result.messageId;
+      this.outDataOringinObj = result.data;
+    } else if (this.channelId.startsWith('private:'))
+    {
+      const result = PrivateMessage(this.channelId.split(':')[1], this.outDataOringin, rgbaToHex(this.bot.config.color));
+      this.currentMessageId = result.messageId;
+      this.outDataOringinObj = result.data;
+    }
+
+    await IIROSE_WSsend(this.bot, this.outDataOringinObj);
   }
 
   async sendData(message: string): Promise<void>
   {
-    IIROSE_WSsend(this.bot, message);
+    await IIROSE_WSsend(this.bot, message);
+  }
+
+  // 获取消息ID
+  getMessageId(): string
+  {
+    return this.currentMessageId;
   }
 
   /**
@@ -213,7 +239,7 @@ export class IIROSE_BotMessageEncoder extends MessageEncoder<Context, IIROSE_Bot
 
         const messData = await this.bot.getMessage('', id);
 
-        this.outDataOringin = `${messData.content} (_hr) ${messData.author.username}_${Math.round(new Date().getTime() / 1e3)} (hr_) ` + this.outDataOringin;
+        this.outDataOringin = `${messData?.content} (_hr) ${messData.author.username}_${Math.round(new Date().getTime() / 1e3)} (hr_) ` + this.outDataOringin;
         break;
       }
 
@@ -395,7 +421,7 @@ export class IIROSE_BotMessageEncoder extends MessageEncoder<Context, IIROSE_Bot
 
       case 'like': {
         // 点赞事件
-        IIROSE_WSsend(this.bot, Like(attrs.uid, attrs.message));
+        await IIROSE_WSsend(this.bot, Like(attrs.uid, attrs.message));
         break;
       }
 
@@ -437,19 +463,6 @@ export class IIROSE_BotMessageEncoder extends MessageEncoder<Context, IIROSE_Bot
     if (type === 'p' && this.outDataOringin.length > 0)
     {
       this.outDataOringin += '\n';
-    }
-
-    if (this.outDataOringin.length <= 0)
-    {
-      return;
-    }
-
-    if (this.channelId.startsWith('public:'))
-    {
-      this.outDataOringinObj = PublicMessage(this.outDataOringin, rgbaToHex(this.bot.config.color));
-    } else if (this.channelId.startsWith('private:'))
-    {
-      this.outDataOringinObj = PrivateMessage(this.channelId.split(':')[1], this.outDataOringin, rgbaToHex(this.bot.config.color));
     }
   }
 }
